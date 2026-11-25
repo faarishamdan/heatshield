@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertOctagon, MessageSquareWarning, Phone, Settings, X } from 'lucide-react';
+import { AlertOctagon, Check, Copy, MessageSquareWarning, Phone, Settings, X } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { formatDateTime } from '../utils/heatIndex';
 
@@ -9,6 +9,7 @@ export function SosEmergencyScreen() {
     'Experiencing severe heat stress or require immediate site assistance.'
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const smsBody = useMemo(() => {
     const readingLine = currentReading
@@ -20,6 +21,16 @@ export function SosEmergencyScreen() {
 
   const sanitizedPhone = settings.emergencyContactPhone.replace(/[^0-9+]/g, '');
   const smsHref = `sms:${sanitizedPhone}?body=${encodeURIComponent(smsBody)}`;
+
+  const handleCopySms = async () => {
+    try {
+      await navigator.clipboard.writeText(smsBody);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // Clipboard blocked in restricted context
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -151,9 +162,17 @@ export function SosEmergencyScreen() {
               <button
                 type="button"
                 onClick={() => setConfirmOpen(false)}
-                className="px-5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100 min-h-[44px]"
+                className="px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100 min-h-[44px]"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCopySms()}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-800 hover:bg-slate-100 min-h-[44px]"
+              >
+                {copied ? <Check className="w-4 h-4 text-teal-700" /> : <Copy className="w-4 h-4" />}
+                <span>{copied ? 'Copied' : 'Copy Text'}</span>
               </button>
               <a
                 href={smsHref}

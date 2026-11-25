@@ -127,7 +127,7 @@
         },
         "source": {
           "type": "string",
-          "enum": ["live_ble", "demo", "manual_test"]
+          "enum": ["live_ble", "live_serial", "demo", "manual_test"]
         },
         "recordedAtIso": {
           "type": "string",

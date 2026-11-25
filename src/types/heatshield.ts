@@ -8,7 +8,7 @@ export type AppScreen =
   | 'reports'
   | 'settings';
 
-export type DataSourceType = 'live_ble' | 'demo' | 'manual_test';
+export type DataSourceType = 'live_ble' | 'live_serial' | 'demo' | 'manual_test';
 
 export type ActivityLabel =
   | 'Stationary'

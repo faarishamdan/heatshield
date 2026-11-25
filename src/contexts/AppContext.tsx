@@ -26,6 +26,7 @@ import {
   testFirestoreConnection,
 } from '../services/firebase';
 import { Esp32BleClient } from '../services/bleService';
+import { Esp32SerialClient, type SerialConnectionState } from '../services/serialService';
 import {
   analyzeMotionMpu6050,
   classifyHeatRisk,
@@ -68,6 +69,12 @@ interface AppContextValue {
   bleSupported: boolean;
   connectBle: () => Promise<void>;
   disconnectBle: () => Promise<void>;
+
+  serialState: SerialConnectionState;
+  serialError: string | null;
+  serialSupported: boolean;
+  connectSerial: () => Promise<void>;
+  disconnectSerial: () => Promise<void>;
 
   demoActive: boolean;
   toggleDemoMode: () => void;
@@ -114,6 +121,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [bleDeviceName, setBleDeviceName] = useState<string | null>(null);
   const [bleError, setBleError] = useState<string | null>(null);
 
+  const [serialState, setSerialState] = useState<SerialConnectionState>(() =>
+    Esp32SerialClient.isSupported() ? 'disconnected' : 'unsupported'
+  );
+  const [serialError, setSerialError] = useState<string | null>(null);
+
   const [demoActive, setDemoActive] = useState(false);
   const [currentReading, setCurrentReading] = useState<SensorReading | null>(null);
   const [readings, setReadings] = useState<SensorReading[]>([]);
@@ -121,6 +133,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [packetLogs, setPacketLogs] = useState<BlePacketLog[]>([]);
 
   const bleClientRef = useRef<Esp32BleClient | null>(null);
+  const serialClientRef = useRef<Esp32SerialClient | null>(null);
   const lastDbPersistMsRef = useRef<number>(0);
   const lastAlertKeyRef = useRef<string>('');
   const demoStepRef = useRef<number>(0);
@@ -473,8 +486,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       },
     });
     bleClientRef.current = client;
+
+    const serialClient = new Esp32SerialClient(
+      (state, errorMsg) => {
+        setSerialState(state);
+        setSerialError(errorMsg ?? null);
+        if (state === 'connected') {
+          setDemoActive(false);
+        }
+      },
+      (rawLine, validation) => {
+        if (validation.valid) {
+          void ingestValidSensorPayload(rawLine, 'live_serial', false);
+        } else {
+          setPacketLogs((prev) => [
+            {
+              id: makeId('pkt'),
+              timestampIso: new Date().toISOString(),
+              rawJson: rawLine.slice(0, 260),
+              valid: false,
+              error: validation.error,
+              source: 'live_serial',
+            },
+            ...prev.slice(0, 24),
+          ]);
+        }
+      }
+    );
+    serialClientRef.current = serialClient;
+
     return () => {
       void client.disconnect();
+      void serialClient.disconnect();
     };
   }, [ingestValidSensorPayload]);
 
@@ -506,15 +549,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await bleClientRef.current?.disconnect();
   }, []);
 
+  const connectSerial = useCallback(async () => {
+    setSerialError(null);
+    await serialClientRef.current?.connect(115200);
+  }, []);
+
+  const disconnectSerial = useCallback(async () => {
+    await serialClientRef.current?.disconnect();
+  }, []);
+
   const toggleDemoMode = useCallback(() => {
     setDemoActive((prev) => {
       const next = !prev;
       if (next && bleState === 'connected') {
         void bleClientRef.current?.disconnect();
       }
+      if (next && serialState === 'connected') {
+        void serialClientRef.current?.disconnect();
+      }
       return next;
     });
-  }, [bleState]);
+  }, [bleState, serialState]);
 
   const seedDemoShiftHistory = useCallback(async () => {
     const activeUser = userRef.current;
@@ -725,6 +780,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         bleSupported: Esp32BleClient.isSupported(),
         connectBle,
         disconnectBle,
+        serialState,
+        serialError,
+        serialSupported: Esp32SerialClient.isSupported(),
+        connectSerial,
+        disconnectSerial,
         demoActive,
         toggleDemoMode,
         seedDemoShiftHistory,

@@ -9,6 +9,7 @@ import {
   Play,
   Send,
   Square,
+  Usb,
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { MotionAxisChart } from '../components/Charts';
@@ -31,6 +32,11 @@ export function LiveMonitorScreen() {
     bleSupported,
     connectBle,
     disconnectBle,
+    serialState,
+    serialError,
+    serialSupported,
+    connectSerial,
+    disconnectSerial,
     demoActive,
     toggleDemoMode,
     currentReading,
@@ -54,9 +60,9 @@ export function LiveMonitorScreen() {
 
   return (
     <div className="space-y-6">
-      {/* BLE Connection Card */}
+      {/* BLE & Serial Connection Card */}
       <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               {bleState === 'connected' ? (
@@ -65,12 +71,13 @@ export function LiveMonitorScreen() {
                 <Bluetooth className="w-5 h-5 text-[#0B1F3A]" />
               )}
               <h2 className="font-display font-semibold text-lg text-slate-900">
-                ESP32-WROOM-DA Bluetooth Low Energy Link
+                ESP32-WROOM-DA Hardware Connection (BLE &amp; Serial)
               </h2>
             </div>
             <p className="text-xs text-slate-500">
-              Status: <strong className="text-slate-800">{bleState.toUpperCase()}</strong>
-              {bleDeviceName ? ` · Device: ${bleDeviceName}` : ''}
+              BLE: <strong className="text-slate-800">{bleState.toUpperCase()}</strong>
+              {bleDeviceName ? ` (${bleDeviceName})` : ''} · Serial:{' '}
+              <strong className="text-slate-800">{serialState.toUpperCase()}</strong>
             </p>
           </div>
 
@@ -97,8 +104,29 @@ export function LiveMonitorScreen() {
                     ? 'Scanning for ESP32...'
                     : bleState === 'connecting'
                     ? 'Connecting GATT...'
-                    : 'Scan & Pair ESP32'}
+                    : 'Pair ESP32 (BLE)'}
                 </span>
+              </button>
+            )}
+
+            {serialState === 'connected' ? (
+              <button
+                type="button"
+                onClick={() => void disconnectSerial()}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium min-h-[44px]"
+              >
+                <Usb className="w-4 h-4" />
+                <span>Disconnect Serial</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void connectSerial()}
+                disabled={!serialSupported || serialState === 'connecting'}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0B1F3A] hover:bg-slate-800 disabled:opacity-50 text-white text-sm font-medium min-h-[44px]"
+              >
+                <Usb className="w-4 h-4" />
+                <span>Connect USB / Serial</span>
               </button>
             )}
 
@@ -119,21 +147,21 @@ export function LiveMonitorScreen() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-slate-50 border border-slate-200 rounded-xl p-4">
           <div>
-            <span className="text-slate-500 block">GATT Service UUID</span>
+            <span className="text-slate-500 block">GATT Service UUID (BLE)</span>
             <span className="font-mono text-slate-900 break-all">{HEATSHIELD_BLE_SERVICE_UUID}</span>
           </div>
           <div>
-            <span className="text-slate-500 block">Notify Characteristic UUID</span>
+            <span className="text-slate-500 block">Notify Characteristic UUID (BLE)</span>
             <span className="font-mono text-slate-900 break-all">
               {HEATSHIELD_BLE_CHARACTERISTIC_UUID}
             </span>
           </div>
         </div>
 
-        {bleError && (
+        {(bleError || serialError) && (
           <div className="p-3.5 rounded-xl bg-orange-50 border border-orange-200 flex items-start gap-2.5 text-xs text-orange-950">
             <AlertCircle className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
-            <span>{bleError}</span>
+            <span>{bleError || serialError}</span>
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { AlertCircle, Bot, Loader2, Send, ShieldAlert } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { AlertCircle, Bot, ClipboardCheck, Loader2, Send, ShieldAlert } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
+import { classifyHeatRisk } from '../utils/heatIndex';
 
 interface ChatMessage {
   id: string;
@@ -15,6 +16,34 @@ export function AiAssistantScreen() {
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const localRuleSummary = useMemo(() => {
+    if (!currentReading && readings.length === 0) return null;
+
+    const latest = currentReading ?? readings[0];
+    const risk = classifyHeatRisk(latest.heatIndex, settings);
+    const slice = readings.slice(0, 40);
+    const avgHi =
+      slice.length > 0
+        ? slice.reduce((acc, r) => acc + r.heatIndex, 0) / slice.length
+        : latest.heatIndex;
+    const peakHi =
+      slice.length > 0 ? Math.max(...slice.map((r) => r.heatIndex)) : latest.heatIndex;
+    const spikeCount = slice.filter((r) => r.anomalyFlagged).length;
+
+    const trendDelta =
+      slice.length >= 4
+        ? slice[0].heatIndex - slice[Math.min(slice.length - 1, 5)].heatIndex
+        : 0;
+    const trendText =
+      trendDelta >= 1.2
+        ? `Rising (+${trendDelta.toFixed(1)}°C over recent samples)`
+        : trendDelta <= -1.2
+        ? `Cooling (${trendDelta.toFixed(1)}°C over recent samples)`
+        : 'Steady across recent samples';
+
+    return { latest, risk, avgHi, peakHi, spikeCount, trendText, sampleCount: slice.length };
+  }, [currentReading, readings, settings]);
 
   const runAnalysis = async (
     mode: 'explain' | 'summary' | 'patterns' | 'safety_tips',
@@ -136,11 +165,61 @@ export function AiAssistantScreen() {
       <div className="p-4 rounded-2xl bg-orange-50 border border-orange-200 flex items-start gap-3">
         <ShieldAlert className="w-5 h-5 text-orange-700 shrink-0 mt-0.5" />
         <div className="text-xs text-orange-950 leading-relaxed">
-          <strong>Safety Information Notice:</strong> AI outputs explain environmental sensor
-          readings and general heat-safety practices. They are <strong>not</strong> medical
+          <strong>Safety Information Notice:</strong> Outputs on this page explain environmental
+          sensor readings and general heat-safety practices. They are <strong>not</strong> medical
           diagnoses, clinical advice, or guaranteed predictions. If a worker feels dizzy, nauseated,
           or disoriented, stop work immediately and seek medical care.
         </div>
+      </div>
+
+      {/* Deterministic Telemetry Briefing (Always works without external AI billing) */}
+      <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="w-4 h-4 text-teal-700" />
+            <h2 className="font-display font-semibold text-base text-slate-900">
+              Instant Rule-Based Telemetry Briefing
+            </h2>
+          </div>
+          <span className="text-xs text-slate-500">Computed locally from sensor records</span>
+        </div>
+
+        {!localRuleSummary ? (
+          <p className="text-xs text-slate-500">
+            No telemetry recorded yet. Connect an ESP32 wearable or enable Demonstration Replay on
+            the Dashboard to view live heat-index explanations and pattern metrics.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <div className="font-semibold text-slate-900">Current Exposure Band</div>
+              <div className="font-mono text-slate-800">
+                {localRuleSummary.latest.heatIndex.toFixed(1)}°C HI · {localRuleSummary.risk.label}
+              </div>
+              <p className="text-slate-600 leading-relaxed">{localRuleSummary.risk.guidance}</p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <div className="font-semibold text-slate-900">
+                Recorded Pattern ({localRuleSummary.sampleCount} samples)
+              </div>
+              <div className="font-mono text-slate-800">
+                Avg {localRuleSummary.avgHi.toFixed(1)}°C · Peak {localRuleSummary.peakHi.toFixed(1)}°C
+              </div>
+              <p className="text-slate-600 leading-relaxed">
+                Trend: {localRuleSummary.trendText} · Motion flags: {localRuleSummary.spikeCount}
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <div className="font-semibold text-slate-900">General Crew Reminder</div>
+              <p className="text-slate-600 leading-relaxed">
+                Heat Index estimates ambient thermal load (not core body temp or WBGT). Maintain
+                250 ml water every 15-20 min in warm shifts and use buddy checks.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Quick Analysis Controls */}

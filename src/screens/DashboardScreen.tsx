@@ -26,6 +26,7 @@ export function DashboardScreen() {
     settings,
     bleState,
     bleDeviceName,
+    serialState,
     demoActive,
     toggleDemoMode,
     connectBle,
@@ -54,10 +55,12 @@ export function DashboardScreen() {
           <div>
             <div className="text-sm font-semibold text-slate-900">
               {bleState === 'connected'
-                ? `Live Hardware Connected (${bleDeviceName ?? 'ESP32-WROOM-DA'})`
+                ? `Live Hardware Connected (${bleDeviceName ?? 'HEATSHIELD_AI'})`
+                : serialState === 'connected'
+                ? 'Live Hardware Connected via Serial / USB (115200 baud)'
                 : demoActive
                 ? 'Demonstration Replay Active (Synthetic Data — Not Live Hardware)'
-                : 'No Hardware Connected — Awaiting ESP32 BLE Telemetry'}
+                : 'No Hardware Connected — Awaiting ESP32 BLE or Serial Telemetry'}
             </div>
             <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-2">
               <span>Worker: {settings.workerName}</span>
@@ -72,7 +75,7 @@ export function DashboardScreen() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {bleState !== 'connected' && (
+          {bleState !== 'connected' && serialState !== 'connected' && (
             <button
               type="button"
               onClick={() => void connectBle()}
@@ -110,7 +113,15 @@ export function DashboardScreen() {
           </div>
           <div className="mt-2 text-xs text-slate-500">
             {currentReading
-              ? `Source: ${currentReading.source === 'live_ble' ? 'ESP32 Live BLE' : currentReading.source === 'demo' ? 'Demonstration' : 'Manual Test'}`
+              ? `Source: ${
+                  currentReading.source === 'live_ble'
+                    ? 'ESP32 Live BLE'
+                    : currentReading.source === 'live_serial'
+                    ? 'ESP32 Live Serial'
+                    : currentReading.source === 'demo'
+                    ? 'Demonstration'
+                    : 'Manual Test'
+                }`
               : 'Connect sensor to measure'}
           </div>
         </div>

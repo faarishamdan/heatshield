@@ -14,7 +14,7 @@ export function HistoryScreen() {
     user,
   } = useApp();
 
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'live_ble' | 'demo' | 'manual_test'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'live_ble' | 'live_serial' | 'demo' | 'manual_test'>('all');
   const [riskFilter, setRiskFilter] = useState<'all' | 'elevated'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [seeding, setSeeding] = useState(false);
@@ -92,7 +92,7 @@ export function HistoryScreen() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
-              {(['all', 'live_ble', 'demo', 'manual_test'] as const).map((src) => (
+              {(['all', 'live_ble', 'live_serial', 'demo', 'manual_test'] as const).map((src) => (
                 <button
                   key={src}
                   type="button"
@@ -106,7 +106,9 @@ export function HistoryScreen() {
                   {src === 'all'
                     ? 'All Sources'
                     : src === 'live_ble'
-                    ? 'Live Hardware'
+                    ? 'Live BLE'
+                    : src === 'live_serial'
+                    ? 'Live Serial'
                     : src === 'demo'
                     ? 'Demo'
                     : 'Manual Test'}
@@ -176,7 +178,13 @@ export function HistoryScreen() {
                         {formatDateTime(r.recordedAtIso)}
                       </td>
                       <td className="py-2.5 pr-4 text-slate-600 whitespace-nowrap">
-                        {r.source === 'live_ble' ? 'Live Hardware' : r.source === 'demo' ? 'Demo' : 'Manual Test'}
+                        {r.source === 'live_ble'
+                          ? 'Live BLE'
+                          : r.source === 'live_serial'
+                          ? 'Live Serial'
+                          : r.source === 'demo'
+                          ? 'Demo'
+                          : 'Manual Test'}
                       </td>
                       <td className="py-2.5 pr-4 font-mono text-right text-slate-900 tabular-nums">
                         {r.temperature.toFixed(1)}

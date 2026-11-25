@@ -39,8 +39,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     activeScreen,
     setActiveScreen,
     bleState,
+    serialState,
     demoActive,
     currentReading,
+    signInWithGoogle,
     signOutUser,
     connectBle,
   } = useApp();
@@ -51,6 +53,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const sourceStatusLabel =
     bleState === 'connected'
       ? 'Live BLE Hardware'
+      : serialState === 'connected'
+      ? 'Live Serial Hardware'
       : demoActive
       ? 'Demonstration Replay'
       : 'Sensor Unpaired';
@@ -111,6 +115,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
+          {!user && (
+            <button
+              type="button"
+              onClick={() => void signInWithGoogle()}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-xs font-semibold text-white transition-colors min-h-[40px]"
+            >
+              <span>Sign In with Google</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => void signOutUser()}
@@ -155,7 +169,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <span aria-hidden="true">·</span>
             <span className="font-mono tabular-nums">
               {currentReading
-                ? `HI ${currentReading.heatIndex.toFixed(1)}°C (${currentReading.source === 'live_ble' ? 'Live' : 'Demo'})`
+                ? `HI ${currentReading.heatIndex.toFixed(1)}°C (${
+                    currentReading.source === 'live_ble' || currentReading.source === 'live_serial'
+                      ? 'Live'
+                      : 'Demo'
+                  })`
                 : 'Awaiting Reading'}
             </span>
           </div>
